@@ -1,5 +1,7 @@
 # PHC Queue Management System
 
+**Live app:** https://latha-aunty-hc-production-a2a2.up.railway.app
+
 A token + wait-time system for Primary Health Centres. Patients get a printed token with an honest wait estimate and leave the clinic. Front desk keeps their phone number so staff can call them back if they're missing when called.
 
 **Challenge 1.3 · Track B — Intelligent Systems for Public Service Access**
@@ -21,15 +23,6 @@ A token + wait-time system for Primary Health Centres. Patients get a printed to
 | `docs/USABILITY_AUDIT.pdf` | Same audit, print-ready |
 | `simulation.py` | Throughput model — baseline vs. new system |
 | `test_flow.py` | End-to-end backend test |
-
----
-
-## Live Demo
-
-🚀 **Live deployment:** https://latha-aunty-hc-production-a2a2.up.railway.app
-
-- **Front desk:** https://latha-aunty-hc-production-a2a2.up.railway.app/dashboard
-- **Doctor console:** https://latha-aunty-hc-production-a2a2.up.railway.app/doctor
 
 ---
 
