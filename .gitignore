@@ -4,3 +4,5 @@ __pycache__/
 phc_queue.db
 phc_queue.db-wal
 phc_queue.db-shm
+.claude/
+railway.toml

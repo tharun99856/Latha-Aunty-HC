@@ -24,7 +24,16 @@ A token + wait-time system for Primary Health Centres. Patients get a printed to
 
 ---
 
-## Run it
+## Live Demo
+
+🚀 **Live deployment:** https://latha-aunty-hc-production-a2a2.up.railway.app
+
+- **Front desk:** https://latha-aunty-hc-production-a2a2.up.railway.app/dashboard
+- **Doctor console:** https://latha-aunty-hc-production-a2a2.up.railway.app/doctor
+
+---
+
+## Run it locally
 
 ```bash
 python -m pip install -r requirements.txt
@@ -88,3 +97,15 @@ V1 deliberately ships without third-party messaging integration to keep the prot
 - **FastAPI + SQLite** — runs on a Raspberry Pi, survives power loss
 - **Plain HTML + JS** — no build step, loads on cheap tablets, anyone can fix it
 - **No Redis, no Docker, no React, no ML, no third-party APIs in V1** — every dependency justified by an actual constraint
+- **Deployed on Railway** — free tier, auto-deploys from GitHub, scales as needed
+
+---
+
+## Deployment
+
+Deployed on Railway. To deploy your own:
+1. Fork this repo → connect to Railway
+2. Set start command: `uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}`
+3. Generate domain (port 8000)
+
+No environment variables needed for V1.
