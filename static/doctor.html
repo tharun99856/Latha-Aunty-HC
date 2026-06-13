@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PHC Queue — Doctor Console</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<header class="topbar">
+    <div class="topbar-left">
+        <div class="phc-badge">+</div>
+        <div>
+            <div class="phc-name" id="phc-name">Latha Children's Clinic</div>
+            <div class="topbar-meta">Doctor Console</div>
+        </div>
+    </div>
+</header>
+
+<main id="closed-state" class="hidden">
+    <div class="empty-state">
+        <h1>OPD is not open</h1>
+        <p>Waiting for front desk to open today's session</p>
+    </div>
+</main>
+
+<main id="open-state" class="hidden">
+    <div class="doctor-layout">
+        <div class="serving-card">
+            <span class="serving-label">Now Serving</span>
+            <span class="serving-number" id="serving-number">
+                <span class="serving-empty">&mdash;</span>
+            </span>
+        </div>
+
+        <button class="btn-next" id="btn-next" onclick="callNext()">Next Patient</button>
+
+        <div id="empty-msg" class="queue-empty-msg hidden">All patients served</div>
+
+        <div class="stats-row">
+            <div class="stat">
+                <span class="stat-value" id="stat-remaining">0</span>
+                <span class="stat-label">remaining</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value" id="stat-avg">&mdash;</span>
+                <span class="stat-label">avg consult</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value" id="stat-served">0</span>
+                <span class="stat-label">served today</span>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script>
+const API = '';
+let currentNumber = '';
+
+function showState(active) {
+    document.getElementById('closed-state').classList.toggle('hidden', active);
+    document.getElementById('open-state').classList.toggle('hidden', !active);
+}
+
+async function poll() {
+    try {
+        const res = await fetch(`${API}/api/queue`);
+        const data = await res.json();
+
+        if (!data.active) {
+            showState(false);
+            return;
+        }
+
+        showState(true);
+
+        const numEl = document.getElementById('serving-number');
+        const btn = document.getElementById('btn-next');
+        const emptyMsg = document.getElementById('empty-msg');
+
+        if (data.current_token) {
+            const num = data.current_token.number;
+            if (num !== currentNumber) {
+                numEl.textContent = num;
+                numEl.classList.add('bump');
+                setTimeout(() => numEl.classList.remove('bump'), 350);
+                currentNumber = num;
+            }
+            emptyMsg.classList.add('hidden');
+            btn.disabled = false;
+        } else if (data.waiting === 0) {
+            numEl.innerHTML = '<span class="serving-empty">&mdash;</span>';
+            currentNumber = '';
+            emptyMsg.classList.remove('hidden');
+            btn.disabled = true;
+        } else {
+            numEl.innerHTML = '<span class="serving-empty">Ready</span>';
+            currentNumber = '';
+            emptyMsg.classList.add('hidden');
+            btn.disabled = false;
+        }
+
+        document.getElementById('stat-remaining').textContent = data.waiting;
+
+        const avg = data.avg_duration_seconds;
+        document.getElementById('stat-avg').textContent =
+            avg ? `~${Math.round(avg / 60)} min` : '—';
+
+        document.getElementById('stat-served').textContent =
+            data.session.total_served;
+    } catch (e) {
+        /* offline — hold last state */
+    }
+}
+
+async function callNext() {
+    const btn = document.getElementById('btn-next');
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(`${API}/api/queue/next`, { method: 'POST' });
+        if (res.ok) poll();
+    } finally {
+        setTimeout(() => { btn.disabled = false; }, 500);
+    }
+}
+
+setInterval(poll, 5000);
+poll();
+</script>
+</body>
+</html>

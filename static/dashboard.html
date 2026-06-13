@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PHC Queue — Front Desk</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<header class="topbar">
+    <div class="topbar-left">
+        <div class="phc-badge">+</div>
+        <div>
+            <div class="phc-name" id="phc-name">Latha Children's Clinic</div>
+            <div class="topbar-meta" id="session-meta"></div>
+        </div>
+    </div>
+    <div class="topbar-right" id="topbar-actions"></div>
+</header>
+
+<main id="closed-state" class="hidden">
+    <div class="empty-state">
+        <h1>OPD is closed</h1>
+        <p>Open today's session to start issuing tokens</p>
+        <button class="btn-open-opd" onclick="openOPD()">Open OPD</button>
+    </div>
+</main>
+
+<main id="open-state" class="hidden">
+    <div class="dashboard-grid">
+        <section class="primary-col">
+            <div class="counter-card">
+                <span class="counter-label">Patients Waiting</span>
+                <span class="counter-value" id="waiting-count">0</span>
+                <span class="counter-sub" id="wait-estimate"></span>
+            </div>
+
+            <div class="new-token-card" style="margin-top: 20px;">
+                <div class="input-group">
+                    <input type="tel" class="phone-input" id="phone-input"
+                           placeholder="Mobile number" maxlength="10"
+                           inputmode="numeric" pattern="[0-9]*">
+                    <span class="input-hint">Optional — enables WhatsApp updates</span>
+                </div>
+                <button class="btn-new-token" id="btn-issue" onclick="issueToken()">New Token</button>
+            </div>
+
+            <div class="alert-banner hidden" id="doctor-alert" style="margin-top: 20px;">
+                <span>&#9888;</span>
+                <span>Doctor inactive — wait estimates paused</span>
+            </div>
+        </section>
+
+        <section class="secondary-col">
+            <div class="tokens-card">
+                <h2>Recent Tokens</h2>
+                <table class="tokens-table">
+                    <thead>
+                        <tr>
+                            <th>Token</th>
+                            <th>Issued</th>
+                            <th>Status</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="token-list"></tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+</main>
+
+<div id="token-modal" class="hidden">
+    <div class="modal-overlay" onclick="closeModal(event)">
+        <div class="token-ticket">
+            <div class="ticket-top">
+                <div class="ticket-phc" id="modal-phc"></div>
+                <div class="ticket-number" id="modal-number"></div>
+            </div>
+            <hr class="ticket-divider">
+            <div class="ticket-bottom">
+                <div class="ticket-wait" id="modal-wait"></div>
+                <button class="btn-done" onclick="closeModal()">Done</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const API = '';
+let lastWaiting = -1;
+
+function formatTime(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const h = d.getHours();
+    const m = String(d.getMinutes()).padStart(2, '0');
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    return `${h % 12 || 12}:${m} ${ampm}`;
+}
+
+const STATUS_LABELS = {
+    waiting: 'Waiting',
+    called: 'In',
+    served: 'Done',
+    'no-show': 'No Show'
+};
+
+function renderTokens(tokens) {
+    const tbody = document.getElementById('token-list');
+    tbody.innerHTML = tokens.map(t => `
+        <tr>
+            <td><span class="token-num">${t.number}</span></td>
+            <td>${formatTime(t.issued_at)}</td>
+            <td>
+                <span class="status-badge ${t.status}">
+                    <span class="status-dot"></span>
+                    ${STATUS_LABELS[t.status] || t.status}
+                </span>
+            </td>
+            <td>${t.phone ? '<span class="phone-icon">&#128222;</span>' : ''}</td>
+        </tr>
+    `).join('');
+}
+
+function showState(active) {
+    document.getElementById('closed-state').classList.toggle('hidden', active);
+    document.getElementById('open-state').classList.toggle('hidden', !active);
+
+    const actions = document.getElementById('topbar-actions');
+    if (active) {
+        actions.innerHTML = '<button class="btn-close-opd" onclick="closeOPD()">Close OPD</button>';
+    } else {
+        actions.innerHTML = '';
+    }
+}
+
+async function poll() {
+    try {
+        const res = await fetch(`${API}/api/queue`);
+        const data = await res.json();
+
+        if (!data.active) {
+            showState(false);
+            return;
+        }
+
+        showState(true);
+
+        const el = document.getElementById('waiting-count');
+        const newVal = String(data.waiting);
+        if (el.textContent !== newVal) {
+            el.textContent = newVal;
+            el.classList.add('bump');
+            setTimeout(() => el.classList.remove('bump'), 300);
+        }
+
+        const waitEl = document.getElementById('wait-estimate');
+        if (data.estimated_wait_minutes != null && data.waiting > 0) {
+            waitEl.textContent = `Est. wait for next token: ~${data.estimated_wait_minutes} min`;
+        } else {
+            waitEl.textContent = '';
+        }
+
+        const meta = document.getElementById('session-meta');
+        const s = data.session;
+        meta.textContent = `${s.total_issued} issued · ${s.total_served} served · Opened ${formatTime(s.opened_at)}`;
+
+        document.getElementById('doctor-alert').classList.toggle('hidden', !data.doctor_inactive);
+
+        renderTokens(data.recent_tokens || []);
+    } catch (e) {
+        /* network down — UI stays on last known state */
+    }
+}
+
+async function openOPD() {
+    const res = await fetch(`${API}/api/session/open`, { method: 'POST' });
+    if (res.ok) poll();
+}
+
+async function closeOPD() {
+    const q = await fetch(`${API}/api/queue`);
+    const state = await q.json();
+    const waiting = state.waiting || 0;
+
+    if (waiting > 0 && !confirm(`${waiting} patient(s) still waiting. Close OPD?`)) return;
+
+    const res = await fetch(`${API}/api/session/close`, { method: 'POST' });
+    if (res.ok) poll();
+}
+
+async function issueToken() {
+    const btn = document.getElementById('btn-issue');
+    const input = document.getElementById('phone-input');
+    const phone = input.value.replace(/\D/g, '');
+
+    if (phone.length > 0 && phone.length !== 10) {
+        input.style.borderColor = '#B42318';
+        return;
+    }
+    input.style.borderColor = '';
+
+    btn.disabled = true;
+    try {
+        const res = await fetch(`${API}/api/token`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: phone.length === 10 ? phone : null })
+        });
+
+        if (!res.ok) return;
+        const token = await res.json();
+
+        document.getElementById('modal-phc').textContent = document.getElementById('phc-name').textContent;
+        document.getElementById('modal-number').textContent = token.number;
+        document.getElementById('modal-wait').innerHTML =
+            `Estimated wait: <strong>~${token.estimated_wait || 0} min</strong>`;
+
+        document.getElementById('token-modal').classList.remove('hidden');
+        input.value = '';
+        poll();
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+function closeModal(e) {
+    if (e && e.target !== e.currentTarget) return;
+    document.getElementById('token-modal').classList.add('hidden');
+}
+
+document.getElementById('phone-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') issueToken();
+});
+
+setInterval(poll, 5000);
+poll();
+</script>
+</body>
+</html>
