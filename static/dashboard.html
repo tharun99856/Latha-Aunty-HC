@@ -44,7 +44,7 @@
                     <input type="tel" class="phone-input" id="phone-input"
                            placeholder="Mobile number" maxlength="10"
                            inputmode="numeric" pattern="[0-9]*">
-                    <span class="input-hint">Optional — enables WhatsApp updates</span>
+                    <span class="input-hint">Optional — for staff callback if needed</span>
                 </div>
                 <button class="btn-new-token" id="btn-issue" onclick="issueToken()">New Token</button>
             </div>
@@ -64,7 +64,7 @@
                             <th>Token</th>
                             <th>Issued</th>
                             <th>Status</th>
-                            <th></th>
+                            <th>Phone</th>
                         </tr>
                     </thead>
                     <tbody id="token-list"></tbody>
@@ -122,7 +122,7 @@ function renderTokens(tokens) {
                     ${STATUS_LABELS[t.status] || t.status}
                 </span>
             </td>
-            <td>${t.phone ? '<span class="phone-icon">&#128222;</span>' : ''}</td>
+            <td class="phone-cell">${t.phone || '—'}</td>
         </tr>
     `).join('');
 }

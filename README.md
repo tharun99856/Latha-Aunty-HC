@@ -1,6 +1,6 @@
 # PHC Queue Management System
 
-A token + wait-time system for Primary Health Centres. Patients get a token, leave the clinic, and come back when a WhatsApp message tells them their turn is near.
+A token + wait-time system for Primary Health Centres. Patients get a printed token with an honest wait estimate and leave the clinic. Front desk keeps their phone number so staff can call them back if they're missing when called.
 
 **Challenge 1.3 · Track B — Intelligent Systems for Public Service Access**
 
@@ -13,11 +13,12 @@ A token + wait-time system for Primary Health Centres. Patients get a token, lea
 
 | Path | Purpose |
 |---|---|
-| `app/` | FastAPI backend, SQLite, Twilio WhatsApp integration |
+| `app/` | FastAPI backend + SQLite |
 | `static/` | Front-desk dashboard and doctor console (plain HTML + JS) |
 | `docs/PRD.md` | Product requirements |
 | `docs/DELIVERABLES.md` | BOM, throughput estimate, success metrics |
-| `docs/USABILITY_AUDIT.md` | 5-user usability audit protocol + report template |
+| `docs/USABILITY_AUDIT.md` | 4-persona developer self-test audit |
+| `docs/USABILITY_AUDIT.pdf` | Same audit, print-ready |
 | `simulation.py` | Throughput model — baseline vs. new system |
 | `test_flow.py` | End-to-end backend test |
 
@@ -34,7 +35,7 @@ Open:
 - **Front desk:** http://localhost:8000/dashboard
 - **Doctor console:** http://localhost:8000/doctor
 
-To enable WhatsApp, copy `.env.example` to `.env` and fill in Twilio credentials.
+Copy `.env.example` to `.env` to set the clinic name. No external API keys required for V1.
 
 ---
 
@@ -52,7 +53,7 @@ python simulation.py    # throughput simulation (10 runs × 100 patients)
 - **67% reduction in physical wait time** (simulation, 10 runs × 100 patients)
 - **69% reduction in peak in-clinic occupancy**
 - **₹9,300** one-time hardware cost per PHC (under the ₹10,000 ceiling)
-- **₹1,500/month** WhatsApp messaging cost at 200 patients/day
+- **₹0 / month** running cost in V1 — no third-party API dependency
 
 Full breakdown in [docs/DELIVERABLES.md](docs/DELIVERABLES.md).
 
@@ -60,7 +61,25 @@ Full breakdown in [docs/DELIVERABLES.md](docs/DELIVERABLES.md).
 
 ## How it works in one paragraph
 
-The front desk clicks **New Token** — patient gets a number and (if they provided one) a WhatsApp confirmation. The doctor clicks **Next Patient** after each consultation, which advances the queue. The system tracks the rolling average of the last 10 consultation durations and uses it to estimate wait times. When a patient is 3 ahead, they get a WhatsApp message telling them to head to the OPD. They can reply STATUS at any time to check their position. No app install for patients, no internet required for the queue logic (only for WhatsApp).
+The front desk clicks **New Token** — patient gets a printed token with their position and a wait estimate based on the rolling 10-consultation average. Phone number is captured (optional). The doctor clicks **Next Patient** after each consultation, which advances the queue and updates everyone's estimates. The front-desk dashboard shows phone numbers for the recent tokens, so staff can call a patient if they don't show up when called. No app install for patients, no internet required for the queue logic.
+
+---
+
+## V1 vs V2 scope
+
+| Capability | V1 (this submission) | V2 (future) |
+|---|---|---|
+| Token issue + queue advance | ✓ | ✓ |
+| Wait time estimation | ✓ | ✓ |
+| Phone number capture | ✓ | ✓ |
+| Doctor inactivity alert | ✓ | ✓ |
+| Manual staff callback to patient | ✓ | — |
+| Automated WhatsApp / SMS notifications | — | ✓ |
+| Multi-language UI (Telugu / Hindi) | — | ✓ |
+| Multi-department queues | — | ✓ |
+| Admin / CMHO analytics | — | ✓ |
+
+V1 deliberately ships without third-party messaging integration to keep the prototype simple, free to run, and demonstrable without external accounts.
 
 ---
 
@@ -68,5 +87,4 @@ The front desk clicks **New Token** — patient gets a number and (if they provi
 
 - **FastAPI + SQLite** — runs on a Raspberry Pi, survives power loss
 - **Plain HTML + JS** — no build step, loads on cheap tablets, anyone can fix it
-- **Twilio WhatsApp** — proven, well-documented, ₹0.8–1.2 per message
-- **No Redis, no Docker, no React, no ML** — every dependency justified by an actual constraint
+- **No Redis, no Docker, no React, no ML, no third-party APIs in V1** — every dependency justified by an actual constraint

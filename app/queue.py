@@ -142,11 +142,9 @@ def call_next():
         )
         db.commit()
 
-        result = dict(
+        return dict(
             db.execute("SELECT * FROM tokens WHERE id = ?", (next_token["id"],)).fetchone()
         )
-        result["notify"] = _collect_notifications(db, session["id"])
-        return result
     finally:
         db.close()
 
@@ -275,23 +273,3 @@ def _wait_estimate(db, session_id, position):
     if not avg:
         avg = 360
     return round(avg * position / 60)
-
-
-def _collect_notifications(db, session_id):
-    candidates = db.execute(
-        "SELECT * FROM tokens WHERE session_id = ? AND status = 'waiting' AND phone IS NOT NULL AND notified_3ahead = 0 ORDER BY id ASC",
-        (session_id,),
-    ).fetchall()
-
-    targets = []
-    for tok in candidates:
-        pos = db.execute(
-            "SELECT COUNT(*) as c FROM tokens WHERE session_id = ? AND status = 'waiting' AND id < ?",
-            (session_id, tok["id"]),
-        ).fetchone()["c"]
-        if pos <= 3:
-            db.execute("UPDATE tokens SET notified_3ahead = 1 WHERE id = ?", (tok["id"],))
-            targets.append({"phone": tok["phone"], "number": tok["number"], "position": pos})
-
-    db.commit()
-    return targets

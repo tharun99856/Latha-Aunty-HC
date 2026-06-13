@@ -2,16 +2,16 @@ import os
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 load_dotenv()
 
 from app.database import init_db
-from app import queue, whatsapp
+from app import queue
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
@@ -47,12 +47,10 @@ async def open_session():
 
 @app.post("/api/session/close")
 async def close_session():
-    phones = queue.close_session()
-    if phones is None:
+    result = queue.close_session()
+    if result is None:
         return JSONResponse({"error": "No active session"}, status_code=400)
-    for phone in phones:
-        whatsapp.send_opd_closed(phone)
-    return {"closed": True, "notified": len(phones)}
+    return {"closed": True, "no_show_count": len(result)}
 
 
 class TokenRequest(BaseModel):
@@ -64,13 +62,6 @@ async def create_token(body: TokenRequest):
     token = queue.issue_token(body.phone)
     if not token:
         return JSONResponse({"error": "No active session"}, status_code=400)
-
-    if token.get("phone"):
-        whatsapp.send_token_issued(
-            token["phone"], token["number"], PHC_NAME,
-            token.get("estimated_wait", 0),
-        )
-
     return token
 
 
@@ -87,10 +78,6 @@ async def next_patient():
     result = queue.call_next()
     if not result:
         return JSONResponse({"error": "No active session"}, status_code=400)
-
-    for target in result.get("notify", []):
-        whatsapp.send_approaching(target["phone"], target["number"], target["position"])
-
     return result
 
 
@@ -101,23 +88,3 @@ async def queue_state():
         return {"active": False}
     state["active"] = True
     return state
-
-
-@app.post("/api/whatsapp/webhook")
-async def whatsapp_webhook(request: Request):
-    form = await request.form()
-    body_text = form.get("Body", "").strip().upper()
-    from_number = form.get("From", "").replace("whatsapp:", "")
-
-    if body_text == "STATUS" and from_number:
-        token = queue.check_token_by_phone(from_number)
-        if token:
-            whatsapp.send_status(
-                token["phone"], token["number"], token["status"],
-                token.get("position", 0), token.get("estimated_wait", 0),
-            )
-
-    return Response(
-        content='<?xml version="1.0" encoding="UTF-8"?><Response></Response>',
-        media_type="application/xml",
-    )

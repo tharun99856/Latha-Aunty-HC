@@ -82,7 +82,7 @@ def build():
         "subtitle",
     ))
 
-    story.append(P("1. Methodology", "h1"))
+    story.append(P("1. Methodology and Scope", "h1"))
     story.append(P(
         "This report documents a developer self-test usability audit conducted across "
         "four distinct user personas defined in the product requirements: Patient (smartphone-literate), "
@@ -92,6 +92,12 @@ def build():
         "(1 = unable to complete, 5 = completed instantly with full confidence). "
         "A five-user audit with real PHC patients and staff is scheduled for pilot week one and "
         "is not in scope for this hackathon submission."
+    ))
+    story.append(P(
+        "Scope note: V1 ships without automated WhatsApp or SMS notifications &mdash; phone numbers "
+        "are captured at token issue and surfaced on the front-desk dashboard so staff can call back "
+        "patients who are missing when called. Findings touching automated message clarity inform V2 "
+        "planning; V1-specific findings drive pre-pilot fixes."
     ))
     story.append(P(
         "A task is considered &lsquo;positive&rsquo; if its score is greater than or equal to 3.5. "
@@ -220,7 +226,7 @@ def build():
         "body",
     ))
     story.append(P(
-        "&bull; WhatsApp Business API approval flow (sandbox is sufficient for the prototype).<br/>"
+        "&bull; WhatsApp Business API integration (V2 feature, out of V1 scope).<br/>"
         "&bull; Telugu and Hindi message rendering on the actual Android devices used in the field.<br/>"
         "&bull; Multi-day session behaviour across consecutive OPD days.<br/>"
         "&bull; Concurrent front-desk and doctor usage from a single tablet.<br/>"

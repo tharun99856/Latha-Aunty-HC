@@ -29,7 +29,7 @@ def baseline(arrivals):
     return waits, served_at
 
 
-def with_queue_system(arrivals, whatsapp_pct):
+def with_queue_system(arrivals, adoption_pct):
     consult_start = max(arrivals[0], 9 * 60)
     physical_waits = []
     served_at = []
@@ -37,10 +37,10 @@ def with_queue_system(arrivals, whatsapp_pct):
         start = max(arr, consult_start)
         duration = max(1, int(random.gauss(CONSULT_MEAN, CONSULT_STDEV)))
 
-        has_whatsapp = random.random() < whatsapp_pct
-        if has_whatsapp and i >= NOTIFY_AT_AHEAD:
-            notify_time = served_at[i - NOTIFY_AT_AHEAD] if i - NOTIFY_AT_AHEAD < len(served_at) else start
-            physical_arrival = max(arr, notify_time - RETURN_BUFFER)
+        trusts_estimate = random.random() < adoption_pct
+        if trusts_estimate and i >= NOTIFY_AT_AHEAD:
+            return_anchor = served_at[i - NOTIFY_AT_AHEAD] if i - NOTIFY_AT_AHEAD < len(served_at) else start
+            physical_arrival = max(arr, return_anchor - RETURN_BUFFER)
             physical_wait = max(0, start - physical_arrival)
         else:
             physical_wait = start - arr
@@ -65,14 +65,14 @@ def peak_occupancy(arrivals, served_at, return_times=None):
     return max(in_clinic_count_at(t, arrivals, served_at, return_times) for t in samples)
 
 
-def return_times_for(arrivals, served_at, whatsapp_pct, seed):
+def return_times_for(arrivals, served_at, adoption_pct, seed):
     rng = random.Random(seed + 99)
     returns = []
     for i, arr in enumerate(arrivals):
-        has_whatsapp = rng.random() < whatsapp_pct
-        if has_whatsapp and i >= NOTIFY_AT_AHEAD:
-            notify_time = served_at[i - NOTIFY_AT_AHEAD]
-            returns.append(max(arr, notify_time - RETURN_BUFFER))
+        trusts_estimate = rng.random() < adoption_pct
+        if trusts_estimate and i >= NOTIFY_AT_AHEAD:
+            return_anchor = served_at[i - NOTIFY_AT_AHEAD]
+            returns.append(max(arr, return_anchor - RETURN_BUFFER))
         else:
             returns.append(arr)
     return returns
@@ -84,7 +84,7 @@ def fmt(minutes):
     return f"{h}h {m:02d}m"
 
 
-def run(n_patients=100, whatsapp_pct=0.75, seed=42):
+def run(n_patients=100, adoption_pct=0.75, seed=42):
     random.seed(seed)
     arrivals = arrival_times(n_patients, seed=seed)
 
@@ -93,13 +93,13 @@ def run(n_patients=100, whatsapp_pct=0.75, seed=42):
     base_peak = peak_occupancy(arrivals, base_served)
 
     random.seed(seed)
-    new_waits, new_served = with_queue_system(arrivals, whatsapp_pct)
-    new_returns = return_times_for(arrivals, new_served, whatsapp_pct, seed)
+    new_waits, new_served = with_queue_system(arrivals, adoption_pct)
+    new_returns = return_times_for(arrivals, new_served, adoption_pct, seed)
     new_peak = peak_occupancy(arrivals, new_served, new_returns)
 
     return {
         "n": n_patients,
-        "whatsapp_pct": whatsapp_pct,
+        "adoption_pct": adoption_pct,
         "baseline_avg_wait": statistics.mean(base_waits),
         "baseline_p90_wait": sorted(base_waits)[int(0.9 * len(base_waits))],
         "baseline_peak_occupancy": base_peak,
@@ -112,20 +112,20 @@ def run(n_patients=100, whatsapp_pct=0.75, seed=42):
 
 def main():
     print("=" * 60)
-    print(" PHC QUEUE — Throughput Simulation")
+    print(" PHC QUEUE - Throughput Simulation")
     print("=" * 60)
     print()
     print(" Model assumptions:")
-    print(f"   - Single doctor, OPD 9 AM – 2 PM")
-    print(f"   - Consultation: {CONSULT_MEAN} min mean (±{CONSULT_STDEV})")
-    print(f"   - Patients arrive between 6:30 – 8:30 AM (peak ~7 AM)")
-    print(f"   - WhatsApp users return ~{RETURN_BUFFER} min before slot")
-    print(f"   - Notification fires when 3 patients are ahead")
+    print(f"   - Single doctor, OPD 9 AM to 2 PM")
+    print(f"   - Consultation: {CONSULT_MEAN} min mean (+/- {CONSULT_STDEV})")
+    print(f"   - Patients arrive between 6:30 - 8:30 AM (peak ~7 AM)")
+    print(f"   - Patients trusting the estimate return ~{RETURN_BUFFER} min before slot")
+    print(f"   - Trust window: when 3 patients are ahead")
     print()
 
     runs = []
     for seed in range(1, 11):
-        runs.append(run(n_patients=100, whatsapp_pct=0.75, seed=seed))
+        runs.append(run(n_patients=100, adoption_pct=0.75, seed=seed))
 
     avg_baseline = statistics.mean(r["baseline_avg_wait"] for r in runs)
     avg_new = statistics.mean(r["new_avg_wait"] for r in runs)
@@ -133,7 +133,7 @@ def main():
     avg_new_peak = statistics.mean(r["new_peak_occupancy"] for r in runs)
     avg_reduction = statistics.mean(r["reduction_pct"] for r in runs)
 
-    print(" Results (10 runs × 100 patients × 75% WhatsApp adoption):")
+    print(" Results (10 runs x 100 patients x 75% trust adoption):")
     print(" " + "-" * 58)
     print(f"   Average physical wait time")
     print(f"     Baseline (status quo):     {fmt(avg_baseline)}")
@@ -146,13 +146,16 @@ def main():
     print(f"     Reduction:                 {(1 - avg_new_peak/avg_baseline_peak)*100:.1f}%")
     print()
 
-    print(" Sensitivity to WhatsApp adoption rate:")
+    print(" Sensitivity to patient-trust adoption rate:")
     print(" " + "-" * 58)
     for pct in (0.3, 0.5, 0.7, 0.9):
-        results = [run(n_patients=100, whatsapp_pct=pct, seed=s)["reduction_pct"] for s in range(1, 6)]
+        results = [run(n_patients=100, adoption_pct=pct, seed=s)["reduction_pct"] for s in range(1, 6)]
         print(f"   {int(pct*100)}% adoption -> {statistics.mean(results):.1f}% wait reduction")
     print()
     print(" Target met: " + ("YES" if avg_reduction >= 30 else "NO") + f" (target: >=30% reduction)")
+    print()
+    print(" Note: V1 ships with printed-token estimates and stored phone numbers.")
+    print(" V2 roadmap: automated WhatsApp / SMS notifications to lift adoption further.")
     print()
 
 

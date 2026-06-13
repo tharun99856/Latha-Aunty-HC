@@ -1,8 +1,10 @@
 # Usability Audit — PHC Queue Management System
 
-A 5-user audit testing whether the system actually works in the hands of real people. This document is both the **protocol** (how to run the audit) and the **report template** (where to record results).
+A 4-persona developer self-test audit covering V1 features and the V2 roadmap. This document is both the **protocol** (how to run the audit) and the **report template** (where to record results).
 
-> **Note for evaluators:** Audit participants are friends of the developer standing in as proxies for the four user roles. Each was briefed on their role context before testing. Real-PHC validation is planned post-hackathon.
+> **Scope note:** V1 ships without automated WhatsApp / SMS notifications — phone numbers are captured for manual staff callback. Some audit findings (notification message clarity, 3-ahead alert timing) inform V2 planning; V1-specific findings drive pre-pilot fixes.
+
+> **Note for evaluators:** Audit was conducted by the developer playing each role in turn. Real-PHC validation with five distinct users is planned for pilot week one.
 
 ---
 
@@ -117,7 +119,7 @@ Record any usability issues observed during the audit. These should not be inven
 
 ## What We're NOT Auditing in This Round
 
-- WhatsApp Business API approval flow (sandbox is fine for the audit)
+- WhatsApp Business API integration (V2 feature — out of V1 scope)
 - Telugu/Hindi message rendering on actual Indian Android phones in the field
 - Multi-day session behaviour (we test one OPD session per participant)
 - Concurrent front-desk + doctor usage from the same tablet
